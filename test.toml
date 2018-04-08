@@ -1,0 +1,12 @@
+[http]
+addr = ":8080"
+sslAddr = ":4433"
+mainDomain = ".localtest.me"
+ssl = false
+cert = "./cert.pem"
+key = "./key.pem"
+
+[ssh]
+addr = ":2222"
+key = "./host_rsa"
+whitelist = ""

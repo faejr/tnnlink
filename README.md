@@ -38,7 +38,7 @@ ssh-keygen -t rsa -b 4096 -f host_rsa
 [http]
 addr = ":8080"
 sslAddr = ":4433"
-mainDomain = ".localtest.me/"
+mainDomain = ".localtest.me"
 ssl = false
 cert = "./cert.pem"
 key = "./key.pem"

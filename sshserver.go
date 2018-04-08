@@ -166,7 +166,12 @@ func (server *SSHServer) handleRequests(reqs <-chan *ssh.Request, conn *ssh.Serv
 				req.Reply(false, []byte{})
 			}
 
-			addr := net.JoinHostPort(reqPayload.BindAddr, strconv.Itoa(port))
+			bindAddr := reqPayload.BindAddr
+			if reqPayload.BindPort != 80 && reqPayload.BindPort != 443 {
+				bindAddr = "0.0.0.0"
+			}
+
+			addr := net.JoinHostPort(bindAddr, strconv.Itoa(port))
 			ln, err := net.Listen("tcp", addr)
 			if err != nil {
 				// TODO: log listen failure
@@ -177,30 +182,34 @@ func (server *SSHServer) handleRequests(reqs <-chan *ssh.Request, conn *ssh.Serv
 			server.forwards[addr] = ln
 			server.Unlock()
 
-			subdomain := randStringBytesMaskImprSrc(5)
+			subdomain := ""
+			// If user requested port 80 or 443, provide a subdomain
+			if reqPayload.BindPort == 80 || reqPayload.BindPort == 443 {
+				subdomain := randStringBytesMaskImprSrc(5)
 
-			for {
-				var found = false
-				for _, vhost := range server.vhosts {
-					if vhost.Subdomain == subdomain {
-						subdomain = randStringBytesMaskImprSrc(5)
-						found = true
-						break
+				for {
+					var found = false
+					for _, vhost := range server.vhosts {
+						if vhost.Subdomain == subdomain {
+							subdomain = randStringBytesMaskImprSrc(5)
+							found = true
+							break
+						}
 					}
+					if found {
+						continue
+					}
+					break
 				}
-				if found {
-					continue
-				}
-				break
-			}
 
-			// Setup vhost
-			vhost, err := url.Parse("http://" + addr)
-			if err != nil {
-				panic(err)
+				// Setup vhost
+				vhost, err := url.Parse("http://" + addr)
+				if err != nil {
+					panic(err)
+				}
+				proxy := httputil.NewSingleHostReverseProxy(vhost)
+				mux.HandleFunc(subdomain+mainDomain+"/", proxyHandler(proxy))
 			}
-			proxy := httputil.NewSingleHostReverseProxy(vhost)
-			mux.HandleFunc(subdomain+mainDomain, proxyHandler(proxy))
 
 			// Add and save the vhost in our server object
 			server.Lock()
@@ -208,6 +217,11 @@ func (server *SSHServer) handleRequests(reqs <-chan *ssh.Request, conn *ssh.Serv
 				User:      conn.User(),
 				Subdomain: subdomain,
 				Addr:      addr,
+				TCP:       false,
+				Port:      port,
+			}
+			if reqPayload.BindPort == 80 || reqPayload.BindPort == 443 {
+				server.vhosts[conn.RemoteAddr()].TCP = true
 			}
 			server.Unlock()
 
@@ -297,15 +311,23 @@ func (server *SSHServer) handleChannel(newChannel ssh.NewChannel, conn *ssh.Serv
 		server.Unlock()
 		if ok {
 			var subdomainText bytes.Buffer
-			subdomainText.WriteString("\x1b[32mForwarding HTTP traffic from \x1b[4m")
-			if sslActive {
-				subdomainText.WriteString("https")
+			if vhost.TCP {
+				subdomainText.WriteString("\x1b[32mForwarding HTTP traffic from \x1b[4m")
+				if sslActive {
+					subdomainText.WriteString("https")
+				} else {
+					subdomainText.WriteString("http")
+				}
+				subdomainText.WriteString("://")
+				subdomainText.WriteString(vhost.Subdomain)
+				subdomainText.WriteString(mainDomain)
 			} else {
-				subdomainText.WriteString("http")
+				subdomainText.WriteString("\x1b[32mForwarding TCP traffic from \x1b[4m")
+				subdomainText.WriteString("tcp")
+				subdomainText.WriteString(mainDomain)
+				subdomainText.WriteString(":")
+				subdomainText.WriteString(strconv.Itoa(vhost.Port))
 			}
-			subdomainText.WriteString("://")
-			subdomainText.WriteString(vhost.Subdomain)
-			subdomainText.WriteString(mainDomain)
 			subdomainText.WriteString("\x1b[24m\x1b[39m\r\nPress ctrl-c to quit\r\n")
 			connection.Write(subdomainText.Bytes())
 			break
@@ -322,6 +344,11 @@ func (server *SSHServer) handleChannel(newChannel ssh.NewChannel, conn *ssh.Serv
 				ln.Close()
 			}
 			mux.Deregister(vhost.Subdomain + mainDomain)
+		} else {
+			ln, ok := server.forwards[conn.RemoteAddr().String()]
+			if ok {
+				ln.Close()
+			}
 		}
 		server.Unlock()
 		connection.Close()

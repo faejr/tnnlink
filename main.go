@@ -15,7 +15,7 @@ var (
 	sslListenPort    = ":4433"
 	sshListenPort    = ":2222"
 	sshServerKeyPath = "/etc/tnnlink/host_rsa"
-	mainDomain       = ".localtest.me/"
+	mainDomain       = ".localtest.me"
 	sslActive        = false
 	sslCert          = "/etc/tnnlink/cert.pem"
 	sslKey           = "/etc/tnnlink/key.pem"
@@ -30,6 +30,8 @@ type VHost struct {
 	User      string
 	Subdomain string
 	Addr      string
+	TCP       bool
+	Port      int
 }
 
 func main() {
