@@ -1,4 +1,5 @@
 # tnnlink
+[![Build Status](https://travis-ci.org/LiljebergXYZ/tnnlink.svg?branch=master)](https://travis-ci.org/LiljebergXYZ/tnnlink)
 
 Simple HTTP tunneling using SSH, authorized using github public keys.
 
