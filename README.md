@@ -6,6 +6,15 @@ Self-hosted ngrok alternative.
 
 Visit [tnnl.ink](https://tnnl.ink) to see it in action.
 
+## Connecting
+```bash
+ssh <github-username>@localhost -p 2222 -R 80:localhost:<local-port>
+```
+
+## Planned features (no order)
+* TCP tunnel
+* Custom sub-domain
+
 ## Dependencies
 * [github.com/pelletier/go-toml](github.com/pelletier/go-toml)
 
@@ -49,8 +58,3 @@ The whitelist config entry is a comma-seperated list of github usernames
 ## Notes
 1. This software has not been audited in anyway and was a fun weekend project I intend to continue supporting, but it is my first time writing a full application in Go for actual every-day use.
 2. SSL is not activated by default and you are expected to generate a letsencrypt wildcard certificate in order to utilize it
-
-## Connecting
-```bash
-ssh <github-username>@localhost -p 2222 -R 80:localhost:<local-port>
-```
