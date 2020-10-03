@@ -27,6 +27,8 @@ _testmain.go
 .DS_Store
 
 host_rsa
+host_rsa.pub
+
 cert.pem
 key.pem
 config.toml
